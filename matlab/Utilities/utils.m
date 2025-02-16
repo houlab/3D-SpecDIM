@@ -1,32 +1,27 @@
 %%
-addpath(genpath('/Users/shahao/projects/spms_track/manuscript/code'))
+addpath(genpath('./'))
 
-%% x,y,z精度拟合 FigS1
+%% FigS1
 
 z=trackDataFilt(10000:20000,6);
 y=trackDataFilt(10000:20000,5);
 x=trackDataFilt(10000:20000,4);
 time=(1:length(x(:,1)))/1000;
 
-% 设置滑动窗口的大小和步长
+% Set the size and step of the sliding window
 window_size = 1000;
 step_size = 10;
 
-% 计算滑动窗口的数量
 num_windows = floor((length(x) - window_size) / step_size) + 1;
 
-% 初始化存储标准差的数组
 std_errors_x = zeros(num_windows, 1);
 std_errors_y = zeros(num_windows, 1);
 std_errors_z = zeros(num_windows, 1);
 
-% 进行滑动窗口标准差计算
 for i = 1:num_windows
-    % 定位当前窗口的起始和结束索引
     start_idx = (i-1) * step_size + 1;
     end_idx = start_idx + window_size - 1;
-    
-    % 计算标准差并存储
+
     std_errors_x(i) = std(x(start_idx:end_idx))*1000;
     std_errors_y(i) = std(y(start_idx:end_idx))*1000;
     std_errors_z(i) = std(z(start_idx:end_idx))*1000;
@@ -57,8 +52,8 @@ ylabel('Z Precision [nm]');
 xlabel('Time [sec]')
 grid on
 
-%% 光谱精度 Fig2d
-pname = '/Volumes/shah_ssd/data/spms_track/manuscript/Fig2/spec_resolution/';
+%% Fig2d
+pname = 'E:\data\spms_track\manuscript\Fig2\spec_resolution\';
 fileList = ["100ms"];
 dataStruct = struct();
 
@@ -75,47 +70,76 @@ colors = ["#1f77b4", "#ff7f0e", "#2ca02c"];
 k=1;
 for i=1:numel(fields)
     cd (pname);
-    fieldName = fields{i}; % 当前字段名
+    fieldName = fields{i}; 
     if ~contains(fieldName, fileList)
         continue
     end
 
-    data = dataStruct.(fieldName); % 当前字段的值
+    data = dataStruct.(fieldName); 
     cd (fileList(k))
     k=k+1;
     vit_data = readtable("MDD_ViT-learned_outputs.csv");
+    cnn_data = readtable("cnn-learned_outputs.csv");
 
     fields_ = fieldnames(data);
     intensity = [];
     spec_res = [];
     vit_res = [];
+    cnn_res = [];
+
+    spec_mean = [];
+    vit_mean = [];
+    cnn_mean = [];
+
 
     for j = 1:numel(fields_)
         data_ = data.(fields_{j});
-        intensity = [intensity; mean(data_.traj_data(:,11))];
+        intensity = [intensity; mean(data_.traj_data(:,11))/0.69*0.9];
         spec_res = [spec_res; std(data_.spec_data.raw_centroid)];
+        spec_mean = [spec_mean; mean(data_.spec_data.raw_centroid)-20];
         
         tiff_name = fields_{j};
         vit_preds = vit_data.preds(vit_data.t_labels==strcat(tiff_name(5:end),".tiff"));
         vit_res = [vit_res; std(vit_preds)];
+        vit_mean = [vit_mean; mean(vit_preds)-15];
+
+        cnn_preds = cnn_data.preds(cnn_data.t_labels==strcat(tiff_name(5:end),".tiff"));
+        cnn_res = [cnn_res; std(cnn_preds)];
+        cnn_mean = [cnn_mean; mean(cnn_preds)];
     end
     f = fit(intensity, spec_res, 'power2');
     scatter(intensity/1000, spec_res, 100, 'o', 'MarkerFaceColor', '#4B7BB3', ...
         'MarkerEdgeColor', '#4B7BB3', 'HandleVisibility', 'off'); % 使用蓝色圆形标记mVenus
-    plot(50:1:800, f(50000:1000:800000), 'Color', '#4B7BB3', 'LineWidth', 3.5, 'DisplayName', 'Norm');
+    plot(50:1:1000, f(50000:1000:1000000), 'Color', '#4B7BB3', 'LineWidth', 3.5, 'DisplayName', 'Norm');
     
     scatter(intensity/1000, vit_res, 100, '^', 'MarkerFaceColor', '#F4BA1D', ...
         'MarkerEdgeColor', '#F4BA1D', 'HandleVisibility', 'off'); % 使用金色三角形标记mGold
     f = fit(intensity, vit_res, 'power2');
-    plot(50:1:800, f(50000:1000:800000), 'Color', '#F4BA1D', 'LineWidth', 3.5, 'DisplayName', 'ViT');
+    plot(50:1:1000, f(50000:1000:1000000), 'Color', '#F4BA1D', 'LineWidth', 3.5, 'DisplayName', 'ViT');
+
+    scatter(intensity/1000, cnn_res, 100, 's', 'MarkerFaceColor', 'r', ...
+        'MarkerEdgeColor', 'r', 'HandleVisibility', 'off'); % 使用金色三角形标记mGold
+    f = fit(intensity, cnn_res, 'power2');
+    plot(50:1:1000, f(50000:1000:1000000), 'Color', 'r', 'LineWidth', 3.5, 'DisplayName', 'CNN');
 end
+
+figure
+scatter(intensity/1000, spec_mean, 100, 'o', 'MarkerFaceColor', '#4B7BB3', ...
+        'MarkerEdgeColor', '#4B7BB3', 'DisplayName', 'Norm');
+hold on
+scatter(intensity/1000, vit_mean, 100, '^', 'MarkerFaceColor', '#F4BA1D', ...
+        'MarkerEdgeColor', '#F4BA1D', 'DisplayName', 'ViT');
+scatter(intensity/1000, cnn_mean, 100, 's', 'MarkerFaceColor', 'r', ...
+        'MarkerEdgeColor', 'r', 'DisplayName', 'CNN');
 
 
 legend
 grid on
 
-%% 光谱时间分辨率 Fig2e
-pname = '/Volumes/shah_ssd/data/spms_track/manuscript/Fig2/time_resolution/';
+
+
+%% Fig2e
+pname = 'E:\data\spms_track\Ps_beads\time_resolution\';
 fileList = ["100us", "1ms", "5ms", "10ms"];
 
 dataStruct = struct();
@@ -138,13 +162,13 @@ intensity = [];
 
 for i=1:numel(fields)
     cd (pname);
-    fieldName = fields{i}; % 当前字段名
+    fieldName = fields{i}; 
     
     if ~contains(fieldName, fileList)
         continue
     end
 
-    data = dataStruct.(fieldName); % 当前字段的值
+    data = dataStruct.(fieldName); 
     fields_ = fieldnames(data);
     data_ = data.(fields_{1});
 
@@ -154,7 +178,7 @@ end
 
 f = fit(exposure_time, spec_res, 'power2');
 scatter(exposure_time, spec_res, 100, 'o', 'MarkerFaceColor', colors(i), ...
-    'MarkerEdgeColor', colors(i), 'HandleVisibility', 'off'); % 使用蓝色圆形标记mVenus
+    'MarkerEdgeColor', colors(i), 'HandleVisibility', 'off'); 
 plot(0.1:0.1:10, f(0.1:0.1:10), 'Color', colors(i), 'LineWidth', 1.5, 'DisplayName', fileList(i));
 %     scatter(intensity/1000, vit_res, 50, '^', 'MarkerFaceColor', colors(i), ...
 %         'MarkerEdgeColor', colors(i), 'HandleVisibility', 'off'); % 使用金色三角形标记mGold
@@ -168,8 +192,8 @@ ylim([0,60])
 truncAxis('Y', [5 45]);
 
 
-%% 光谱灵敏度 Fig2f
-pname = '/Volumes/shah_ssd/data/spms_track/manuscript/Fig2/sensitive/';
+%% Fig2f
+pname = 'E:\data\spms_track\Ps_beads\sensitive\';
 fileList = ["500ms", "200ms", "100ms", "50ms"];
 
 dataStruct = struct();
@@ -187,13 +211,13 @@ colors = ["#1f77b4", "#ff7f0e", "#2ca02c", "#7E2F8E"];
 k=1;
 for i=1:numel(fields)
     cd (pname);
-    fieldName = fields{i}; % 当前字段名
+    fieldName = fields{i}; 
     
     if ~contains(fieldName, fileList)
         continue
     end
 
-    data = dataStruct.(fieldName); % 当前字段的值
+    data = dataStruct.(fieldName);
     cd (fileList(k))
     k=k+1;
     vit_data = readtable("MDD_ViT-learned_outputs.csv");
@@ -217,19 +241,20 @@ for i=1:numel(fields)
         'MarkerEdgeColor', colors(i), 'HandleVisibility', 'off'); % 使用蓝色圆形标记mVenus
     plot([5:0.1:35]*9/6, f(5000:100:35000), 'Color', colors(i), 'LineWidth', 1.5, 'DisplayName', fileList(i));
     
-%     scatter(intensity/1000, vit_res, 50, '^', 'MarkerFaceColor', colors(i), ...
-%         'MarkerEdgeColor', colors(i), 'HandleVisibility', 'off'); % 使用金色三角形标记mGold
-%     f = fit(intensity, vit_res, 'power2');
-%     plot(5:0.1:35, f(5000:100:35000), 'Color', '#F4BA1D', 'LineWidth', 1.5, 'DisplayName', 'ViT');
-end
 
+    target_value = 5; 
+    equation = @(x) f(x) - target_value;
+    x_guess = 10000; 
+    x_solution = fzero(equation, x_guess);
+    disp(['f(x) = 3 时，x = ', num2str(x_solution*9/6)]);
+end
 
 legend
 grid on
 axis tight
 
-%% 计算所有tr-Halo-mGold曲线的酸化时间及扩散系数 Fig3c
-pname = '/Volumes/shah_ssd/data/spms_track/manuscript/Fig3/mito/';
+%% Fig3c
+pname = 'E:\data\spms_track\mito\';
 fileList = ["tr_Halo_mGold", "tr_Halo_mGold_2"];
 
 fnames = {};
@@ -241,8 +266,7 @@ for j = 1:length(fileList)
     for i = 1:length(files)
         fileName = files(i).name;
         if contains(fileName, '.tdms') && ~contains(fileName, 'SM') &&  ~contains(fileName, 'IM') 
-            % 将符合条件的文件名添加到数组中
-            fnames{end+1} = strcat(folderPath,'/',fileName); % 将符合条件的文件名添加到selectedFiles
+            fnames{end+1} = strcat(folderPath,'/',fileName); 
         end
     end
 end
@@ -304,17 +328,15 @@ mu = mean(total_autophagy_time);
 sigma = std(total_autophagy_time);
 
 figure;
-histogram(data, 'Normalization', 'pdf', 'FaceColor', [0.5 0.5 0.5]); % 使用灰度色彩
+histogram(data, 'Normalization', 'pdf', 'FaceColor', [0.5 0.5 0.5]); 
 hold on;
 
 x = linspace(0, max(data), 100);
 pdf = normpdf(x, mu, sigma);
-plot(x, pdf, 'LineWidth', 2, 'Color', 'k'); % 黑色线条表示正态分布拟合
+plot(x, pdf, 'LineWidth', 2, 'Color', 'k'); 
 
-% 标注均值和方差
 text(mu*1.5, max(pdf), sprintf('Mean = %.2f ± %.2f s', mu, sigma), 'HorizontalAlignment', 'center', 'VerticalAlignment', 'bottom', 'Color', 'k');
 
-% 设置图形的其它属性
 xlabel('Data');
 ylabel('Probability Density');
 title(sprintf('Autophagy Time (N=%d)', length(data)));
@@ -322,7 +344,6 @@ grid on;
 hold off;
 
 %%%%%%%%%%%
-% 设置背景色为白色
 set(gcf, 'Color', 'w');
 
 barData = [mean(Diff);mean(Diff_norm)];
@@ -330,72 +351,64 @@ errData = [std(Diff)/sqrt(length(Diff)); std(Diff_norm)/sqrt(length(Diff_norm))]
 fig = figure;
 barHandle = bar(barData, 'FaceColor', 'flat', 'EdgeColor', 'k', 'LineWidth', 1.5);
 
-% 设置条形图的颜色为灰度
-barHandle.CData(1,:) = [0.5 0.5 0.5]; % 第一个条形的颜色
-barHandle.CData(2,:) = [0 0 0]; % 第二个条形的颜色
+barHandle.CData(1,:) = [0.5 0.5 0.5]; 
+barHandle.CData(2,:) = [0 0 0]; 
 
 hold on;
-
-% 添加误差线
-% 计算条形图的中心位置用于定位误差线
 numBars = numel(barData);
 for i = 1:numBars
     errorbar(i, barData(i),0, errData(i), 'k', 'LineWidth', 1.5);
     x = i;
-    y = barData(i) + max(barData) * 0.1; % 确保文本显示在条形上方
+    y = barData(i) + max(barData) * 0.1; 
     text(x, y, sprintf('%.2f', barData(i)), ...
         'HorizontalAlignment', 'center', 'VerticalAlignment', 'bottom');
 end
 
 hold off;
 
-% 设置图表的其他属性
 set(gca, 'XTick', 1:length(barData), 'XTickLabel', {'Autophagy', 'Norm'},'Box', 'off', 'Color', 'none');
 ylabel('D [um^2/s]');
 title('Comparison of D');
 
-% 设置背景色为白色
 set(fig, 'Color', 'w');
-grid on; % 添加网格线，根据个人偏好选择是否启用
+grid on; 
 
-% 调整坐标轴范围以优化显示
 ylim([0, max(barData) * 1.2]);
 figureandaxiscolors('w','k','')
 
+data = [Diff, Diff_norm]'; 
+group = [repmat({'Autophagy'}, 66, 1); repmat({'Norm'}, 66, 1)]; 
 
+figure;
+violinplot(data, group);
 
-
+ylabel('D [\mum^2/s]');
+title('Comparison of D');
 %% eFig5
-% 定义时间点和波长范围
 t = linspace(1, 100, 100);
 % lambda = linspace(500, 700, 1000);
 
-% 定义两个高斯峰的中心和宽度
 peak1_center = 531;
 peak2_center = 571;
-width1 = 17;   % 峰的宽度
-width2 = 23;   % 峰的宽度
+width1 = 17;  
+width2 = 23;   
 
 % peak1_center = 664;
 % peak2_center = 680;
-% width1 = 6;   % 峰的宽度
-% width2 = 10;   % 峰的宽度
+% width1 = 6;   
+% width2 = 10;   
 
-% 高斯函数定义
 gauss = @(x, mu, sigma, amplitude) amplitude * exp(-((x - mu).^2) / (2 * sigma^2));
 
 mGold_spec = normalize(mGoldHaloSpec.mGold,'range')';
 JF549_spec = normalize(movmean(mGoldHaloSpec.JF549', 40),'range')';
 lambda = mGoldHaloSpec.spec';
 
-% 初始峰值强度
 initial_amplitude1 = 10;
 initial_amplitude2 = 1;
 
-% 指数衰减函数，随时间 t 减小幅度
 decay = @(t, tau, initial) initial * exp(-t / tau);
 
-% 存储两个峰的数据
 spectrum_over_time = zeros(length(t), length(lambda));
 
 gt_int = zeros(length(t),1);
@@ -413,16 +426,14 @@ filter1_width = 11;
 filter2_center = 680; % 684/40 nm
 filter2_width = 22;
 
-% 滤光片函数
 filter_func = @(x, center, width) exp(-((x-center).^2)/(2*(width/2.355)^2));
 
 donor_int = zeros(length(t),1);
 acceptor_int = zeros(length(t),1);
-% 模拟随时间变化的光谱
+
 for i = 1:length(t) 
-    % 计算当前时间点的幅度
-    current_amplitude1 = decay(t(i), 20, initial_amplitude1);  % 较快衰减
-    current_amplitude2 = decay(t(i), 1e5, initial_amplitude2);  % 较慢衰减
+    current_amplitude1 = decay(t(i), 20, initial_amplitude1);  
+    current_amplitude2 = decay(t(i), 1e5, initial_amplitude2);  
     gt_int(i) = current_amplitude1 / current_amplitude2;
 
     noise1 = 0.1 * current_amplitude1 * randn(size(lambda));
@@ -430,7 +441,7 @@ for i = 1:length(t)
     % noise1 = 0;
     % noise2 = 0;
     
-    % 合成光谱
+    
 %     spectrum_over_time(i, :) = gauss(lambda, peak1_center, width1, current_amplitude1) + ...
 %                                gauss(lambda, peak2_center, width2, current_amplitude2) + ...
 %                                noise1 + noise2;
@@ -438,18 +449,14 @@ for i = 1:length(t)
     spectrum_over_time(i, :) = mGold_spec .* current_amplitude1 + JF549_spec .* current_amplitude2 + ...
                            noise1 + noise2;
                            
-    % 通过滤光片的光谱
     filtered1 = spectrum_over_time(i, :) .* filter_func(lambda, filter1_center, filter1_width);
     filtered2 = spectrum_over_time(i, :) .* filter_func(lambda, filter2_center, filter2_width);
 
-    % 累计光强
     sum_filtered1 = sum(filtered1);
     sum_filtered2 = sum(filtered2);
     apd_int(i) = sum_filtered1 / sum_filtered2;
     
     
-    % 光谱解混方法
-    % 构造光谱矩阵和混叠光谱向量
 %     a1 = gauss(lambda, peak1_center, width1, 1);
 %     a2 = gauss(lambda, peak2_center, width2, 1);
     a1 = mGold_spec;
@@ -457,7 +464,6 @@ for i = 1:length(t)
     M = [a1; a2]';
     b_vec = spectrum_over_time(i, :)';
 
-    % 使用线性代数方法解丰度系数
     x = M \ b_vec;  % 解线性方程 Mx = b
     spec_int(i) = x(1) / x(2);
     
@@ -472,7 +478,7 @@ figure;
 % spectrum_merge = gauss(lambda, peak1_center, width1, 1) + ...
 % gauss(lambda, peak2_center, width2, 1);
 spectrum_merge = mGold_spec + JF549_spec;
-plot(lambda, spectrum_merge, 'r-');  % 初始光谱
+plot(lambda, spectrum_merge, 'r-');  
 hold on
 % area(lambda, gauss(lambda, peak1_center, width1, 1), 'FaceColor', 'r', 'FaceAlpha', 0.5);
 % area(lambda, gauss(lambda, peak2_center, width2, 1), 'FaceColor', 'b', 'FaceAlpha', 0.5);
@@ -485,28 +491,25 @@ title('Synthetic Spectrum with Emission Peaks');
 legend('Spectrum', '664 nm Peak', '680 nm Peak');
 grid on
 
-% 绘制特定时间点的光谱
 figure;
-plot(lambda, spectrum_over_time(1, :), 'r-', 'DisplayName', 't = 1');  % 初始光谱
+plot(lambda, spectrum_over_time(1, :), 'r-', 'DisplayName', 't = 1');  
 hold on;
-plot(lambda, spectrum_over_time(50, :), 'g-', 'DisplayName', 't = 50'); % 中间时间点光谱
-plot(lambda, spectrum_over_time(100, :), 'b-', 'DisplayName', 't = 100'); % 最后时间点光谱
+plot(lambda, spectrum_over_time(50, :), 'g-', 'DisplayName', 't = 50'); 
+plot(lambda, spectrum_over_time(100, :), 'b-', 'DisplayName', 't = 100'); 
 
-% 计算带通滤光片的起始和结束波长
 start1 = filter1_center - filter1_width/2;
 end1 = filter1_center + filter1_width/2;
 start2 = filter2_center - filter2_width/2;
 end2 = filter2_center + filter2_width/2;
 
-% 计算两个滤光片之间的区域
 x_fill = [start1, end1, end1, start1];
-y_fill = [0, 0, max(max(spectrum_over_time)), max(max(spectrum_over_time))]; % Y轴范围从0到最大强度
-% 添加矩形区域
-fill(x_fill, y_fill, 'b', 'FaceAlpha', 0.5, 'EdgeColor', 'none'); % 黑色填充，50%透明度
+y_fill = [0, 0, max(max(spectrum_over_time)), max(max(spectrum_over_time))]; 
+
+fill(x_fill, y_fill, 'b', 'FaceAlpha', 0.5, 'EdgeColor', 'none'); 
 
 x_fill = [start2, end2, end2, start2];
-y_fill = [0, 0, max(max(spectrum_over_time)), max(max(spectrum_over_time))]; % Y轴范围从0到最大强度
-fill(x_fill, y_fill, 'r', 'FaceAlpha', 0.5, 'EdgeColor', 'none'); % 黑色填充，50%透明度
+y_fill = [0, 0, max(max(spectrum_over_time)), max(max(spectrum_over_time))]; 
+fill(x_fill, y_fill, 'r', 'FaceAlpha', 0.5, 'EdgeColor', 'none'); 
 
 xlabel('Wavelength (nm)');
 ylabel('Intensity');
@@ -514,7 +517,6 @@ title('Spectral Evolution Over Time');
 legend show;
 grid on;
 
-% 可视化所有时间点的光谱
 figure;
 imagesc(t, lambda, spectrum_over_time');
 xlabel('Time');
@@ -529,50 +531,11 @@ hold on
 plot(donor_int, apd_int, 'g');
 plot(donor_int, spec_int, 'b');
 grid on
-set(gca, 'XScale', 'log'); % 设置 Y 轴为对数刻度
-set(gca, 'YScale', 'log'); % 设置 Y 轴为对数刻度
+set(gca, 'XScale', 'log');
+set(gca, 'YScale', 'log');
 legend("gt", "filter", "unmix","3nm-filter")
 
-
-
-
-%% 极性表征 eFig8
-%cyclohexane toluene 1,4-dioxane (ethyl acetate) acetone ethanol methanol 
-% acetonitrile DMF (DMSO buﬀer) 
-lambda_ex = [528 571 581 593 615 636 640 621 618 629];
-ET_30 = [30.9 33.9 36.0 38.1 42.2 51.9 55.4 45.6 43.2 45.1];
-
-% DOPC DOPC/Chol SM/Chol
-SLBs = [667 641 635];
-
-p = polyfit(ET_30, lambda_ex, 1); % 一次多项式拟合
-y_fit = polyval(p, ET_30);
-
-colors = ["#1f77b4", "#ff7f0e", "#2ca02c"];
-
-labels = {'DOPC', 'SM/Chol', 'DOPC/Chol'};
-x_coords = (SLBs - p(2)) / p(1);
-
-figure;
-hold on;
-scatter(ET_30, lambda_ex, 50, 'square', 'filled', 'MarkerFaceColor','k', ...
-    'HandleVisibility', 'off');
-plot(ET_30, y_fit, 'r-', 'LineWidth', 2, 'HandleVisibility', 'off');
-
-% 在拟合曲线上显示指定的坐标并添
-for i = 1:length(x_coords)
-    scatter(x_coords(i), SLBs(i), 70, 'diamond', ...
-        'filled', 'MarkerFaceColor', colors(i), 'DisplayName', labels{i});
-end
-
-xlabel('E_T(30)');
-ylabel('NR Centriods [nm]');
-
-figureandaxiscolors('w','k','')
-legend('show');
-grid on;
-
-%% mGold 光谱分析 FigS3
+%% FigS3
 x = mGoldHaloSpec.spec;
 y_data = {mean(mGoldHaloSpec.pH3,2), mean(mGoldHaloSpec.pH4,2), mean(mGoldHaloSpec.pH5,2), mean(mGoldHaloSpec.pH6,2), ...
     mean(mGoldHaloSpec.pH7,2), mean(mGoldHaloSpec.pH8,2), mean(mGoldHaloSpec.pH9,2), mean(mGoldHaloSpec.pH10,2)};
@@ -583,7 +546,6 @@ y_data_561 = {mean(mGoldHaloSpec561.pH3,2), mean(mGoldHaloSpec561.pH4,2), mean(m
 
 % pH_Range = ["pH 3", "pH 4", "pH 5", "pH 6", "pH 7", "pH 8", "pH 9", "pH 10"];
 
-% 归一化函数
 maxValue = max([y_data{:}], [], 'all');
 minValue = min([y_data{:}], [], 'all');
 normalize = @(y) (y - minValue) / (maxValue - minValue);
@@ -594,39 +556,32 @@ normalize_561 = @(y) (y - minValue) / (maxValue - minValue);
 
 fit_curve_combined = zeros(2401,8);
 
-% 对每组数据进行高斯拟合，并绘制叠加曲线
 spec = 500:0.1:740;
 
 for i = 1:8
-    % 高斯拟合
     y_norm = normalize(y_data{i});
     y_norm_561 = normalize_561(y_data_561{i});
-    fit1 = fit(x(1:13,1), y_norm(1:13,1), 'gauss1'); % 双高斯拟合
-    fit2 = fit(x_561, y_norm_561, 'gauss1'); % 双高斯拟合
+    fit1 = fit(x(1:13,1), y_norm(1:13,1), 'gauss1'); 
+    fit2 = fit(x_561, y_norm_561, 'gauss1'); 
 
-    % 生成拟合曲线
     fit_curve1 = feval(fit1, spec);
     fit_curve2 = feval(fit2, spec);
 
-    % 叠加两组数据
     fit_curve_combined(:,i) = fit_curve1 + fit_curve2;
     % fit_curve_combined(:,i) = fit_curve2;
 end
 
-% 创建figure
 figure
 hold on;
 maxValue = max(fit_curve_combined, [], 'all');
 minValue = min(fit_curve_combined, [], 'all');
 
-% 生成渐变颜色
-colors = cool(8); % 使用jet渐变色
+colors = cool(8); 
 int_mGold = [];
 int_Halo = [];
 pH_Range = ["pH 3", "pH 4", "pH 5", "pH 6", "pH 7", "pH 8", "pH 9", "pH 10"];
 
 for i = 1:8
-    % 绘制叠加曲线
     fit_curve_norm = (fit_curve_combined(:,i) - minValue) / (maxValue - minValue);
     plot(spec, fit_curve_norm, 'Color', colors(i, :), ...
         'DisplayName', pH_Range(i),'LineWidth',2);
@@ -643,41 +598,32 @@ ylabel('Intensity');
 axis tight
 grid on;
 
-% 绘制图像
 figure;
 hold on;
 
 pH_values = 3:1:10;
 scatter(pH_values, int_Halo, 100, 'o', 'MarkerFaceColor', '#4B7BB3', ...
-        'DisplayName', 'HaloTag'); % 使用蓝色圆形标记mVenus
+        'DisplayName', 'HaloTag'); 
 scatter(pH_values, int_mGold, 100, '^', 'MarkerFaceColor', '#F4BA1D', ...
-        'DisplayName', 'mGold'); % 使用金色三角形标记mGold
+        'DisplayName', 'mGold'); 
 
-% 拟合曲线
-
-% 自定义sigmoid函数
 sigmoid = @(b,x) b(1) ./ (1 + exp(-b(2)*(x-b(3))));
-% 初始参数猜测
-initialGuess = [max(int_mGold), 1, mean(pH_values)]; % 最大值，增长率，中点
-% 进行拟合
-opts = optimset('Display', 'off'); % 关闭拟合过程中的输出
+initialGuess = [max(int_mGold), 1, mean(pH_values)]; 
+opts = optimset('Display', 'off'); 
 [beta,R,J,CovB,MSE,ErrorModelInfo] = nlinfit(pH_values', int_mGold, sigmoid, initialGuess, opts);
-% 生成拟合数据
 fitValuesGold = sigmoid(beta, 3:0.1:10);
 
-% 初始参数猜测
-initialGuess = [max(int_Halo), 1, mean(pH_values)]; % 最大值，增长率，中点
+initialGuess = [max(int_Halo), 1, mean(pH_values)]; 
 [beta,R,J,CovB,MSE,ErrorModelInfo] = nlinfit(pH_values', int_Halo, sigmoid, initialGuess, opts);
 fitValuesHalo = sigmoid(beta, 3:0.1:10);
 
-% pHalo = polyfit(pH_values, int_Halo, 3); % 使用3次多项式拟合mVenus数据
-% pGold = polyfit(pH_values, int_mGold, 3); % 使用3次多项式拟合mGold数据
+% pHalo = polyfit(pH_values, int_Halo, 3); 
+% pGold = polyfit(pH_values, int_mGold, 3); 
 % fitValuesVenus = polyval(pHalo, 3:0.1:10);
 % fitValuesGold = polyval(pGold, 3:0.1:10);
-plot(3:0.1:10, fitValuesHalo, 'Color', '#4B7BB3', 'LineWidth', 3.5, 'HandleVisibility', 'off'); % 绘制mVenus拟合曲线
-plot(3:0.1:10, fitValuesGold, 'Color', '#F4BA1D', 'LineWidth', 3.5, 'HandleVisibility', 'off'); % 绘制mGold拟合曲线
+plot(3:0.1:10, fitValuesHalo, 'Color', '#4B7BB3', 'LineWidth', 3.5, 'HandleVisibility', 'off'); 
+plot(3:0.1:10, fitValuesGold, 'Color', '#F4BA1D', 'LineWidth', 3.5, 'HandleVisibility', 'off'); 
 
-% 设置图例、轴标签和标题
 xlabel('pH');
 ylabel('Normalized Fluorescence');
 hold off;
@@ -736,7 +682,7 @@ xlabel('Distance (pixels)')
 figureandaxiscolors('w','k','')
 
 
-%% 联合标定明场和轨迹数据 FigS7
+%% FigS7
 close all
 plot_traj(trackDataFilt, '');
 
@@ -748,139 +694,12 @@ centerEMCCD = [63,161];
 posImg = TR001_yp_xp(300:506,115:321);
 plot_traj_emccd(y,x,z,' ', posImg,centerEMCCD)
 
-%% 显示光谱曲线 FigS8
-close all
-hFig = figure;
 
-pos1 = [0.2, 0.8, 0.65, 0.1]; % [left bottom width height]
-pos2 = [0.2, 0.1, 0.65, 0.65];
+%% Single molecule trajectory analysis Fig2j-m
+warning off
+pname = 'E:\data\spms_track\manuscript\Review\data\Fig2\Fig2j-m\';
+fileList = ["Atto665N","Setau647N", "Atto565N"];
 
-ax1 = axes('Position', pos1);
-img = spec_data.trackImg(:,:,1755);
-imagesc(img);
-colormap hot;
-set(ax1, 'XTickLabel', [], 'YTickLabel', [], 'ZTickLabel', []);
-
-int_profile_1 = spec_data.trackCurve(1755,:);
-
-ax2 = axes('Position', pos2);
-plot(int_profile_1,'r','LineWidth',1)
-hold on
-ylabel('Normalized Intensity')
-xlabel('Distance (pixels)')
-figureandaxiscolors('w','k','')
-
-
-%% 光谱分段显示 lambda-time-intensity
-% 假设你有波长、时间和强度数据的矩阵
-
-scale_factor=3;
-traj_time = length(trackDataFilt)/1000;
-exposure_time = (traj_time * scale_factor)/length(spec_data.raw_centroid);
-
-t1_ = 500 * 1000;
-t2_ = 2000 * 1000;
-
-startFrame = floor(t1_/exposure_time/1000);
-endFrame = floor(t2_/exposure_time/1000);
-
-spec_data_ = crop_spec_data(spec_data,startFrame, endFrame);
-
-cjet=colormap(parula(length(spec_data_.trackCurve)));
-
-time = linspace(0, 10, 5);  % 时间数据，假设100个点
-wavelengths = 500:3.75:739;  % 光谱波长数据，假设50个波长点
-% intensity = squeeze(mean(spec_data_.trackImg(:, 17:80,1:69:345),1))';  % 强度数据，100组时间，每组50个波长点
-intensity = spec_data.trackCurve(1:69:345,17:80);
-
-
-for i = 1:length(cjet)
-    % plot3(time(i)*ones(size(wavelengths)), wavelengths, intensity(i, :)/max(intensity(i, 23:43)), 'LineWidth', 2);
-    intensity = spec_data_.trackCurve(i,17:80);
-    plot(wavelengths, intensity, 'LineWidth', 1, 'Color', [cjet(i,:),1]);
-    hold on
-end
-
-% 设置坐标轴标签
-xlabel('Time (s)');
-ylabel('Wavelength (nm)');
-zlabel('Intensity (kHz)');
-
-% 添加网格和视角
-grid on;
-
-% % 调整轴的范围
-% xlim([0 10]);
-% ylim([500 740]);
-% zlim([0 4]);
-
-hold off;
-%%
-
-% 假设有10组光谱数据
-wavelengths = 500:3.75:739;
-intensity = spec_data_.trackCurve(1:35:345,17:80);
-
-% 创建图形
-figure;
-hold on;
-
-% 循环遍历每一组数据，并按步长 0.2 偏移横坐标
-for i = 1:size(intensity,1)
-    plot(intensity(i,:)/max(intensity(i, 23:43)) + (i-1)*1, wavelengths, 'LineWidth', 2);  % 按步长 0.2 偏移横坐标
-end
-
-% 设置图形标签
-xlabel('Intensity (with offset)');
-ylabel('Spectra');
-grid on;
-
-hold off;
-
-%% 保存视频
-
-video_name = strcat('spec_image','.mp4');
-outputVideo = VideoWriter(video_name, 'MPEG-4');
-open(outputVideo);
-
-close all
-hFig = figure;
-
-pos1 = [0.2, 0.8, 0.65, 0.1]; % [left bottom width height]
-pos2 = [0.2, 0.1, 0.65, 0.65];
-
-for i = 1:length(spec_data_.trackCurve)
-    ax1 = axes('Position', pos1);
-    img = spec_data_.trackImg(:,16:end,i);
-    imagesc(img);
-    colormap hot;
-    set(ax1, 'XTickLabel', [], 'YTickLabel', [], 'ZTickLabel', []);
-    
-    int_profile_1 = normalize(spec_data_.trackCurve(i,16:end),'range');
-    
-    ax2 = axes('Position', pos2);
-    plot(int_profile_1,'r','LineWidth',1)
-
-    hold on
-    % ylabel('Normalized Intensity')
-    % xlabel('Distance (pixels)')
-    figureandaxiscolors('w','k','')
-    set(gca, 'XTick', [], 'YTick', []);
-    % axis off
-
-    %     %%%%%
-    drawnow;
-    pause(0.01);
-    currFrame = getframe(hFig);
-    writeVideo(outputVideo, currFrame);
-    %     %%%%%%%%
-end
-close(outputVideo);
-
-
-%% 将所有荧光小球的光谱数据存储为16*80大小，用于深度学习重建
-pname = '/Volumes/shah/data/spms_track/Ps_beads/';
-fileList = ["488_beads", "561_beads"];
 
 fnames = {};
 for j = 1:length(fileList)
@@ -890,121 +709,245 @@ for j = 1:length(fileList)
     files = files(~[files.isdir]);
     for i = 1:length(files)
         fileName = files(i).name;
-        if contains(fileName, '.tdms') && ~contains(fileName, 'SM')
+        if contains(fileName, '.tdms') && ~contains(fileName, 'SM') &&  ~contains(fileName, 'IM') 
             % 将符合条件的文件名添加到数组中
             fnames{end+1} = strcat(folderPath,'/',fileName); % 将符合条件的文件名添加到selectedFiles
         end
     end
 end
+
+file_names = [];
+Diff = [];
+Diff_R = [];
+traj_Time = [];
+traj_Int = [];
+
+Spec_cent = [];
+Spec_cent_std = [];
+
 
 for j = 1:length(fnames)
     close all
     [pname, fname, ~] = fileparts(fnames{j});
-    disp(fname)
     fname = strcat(fname,'.tdms');
-    sname = regexprep(fname, '(\d{6}) TR(\d+)(\.tdms)', '$1 SM$2 TR$2$3');
-
+    sname = regexprep(fname, '(\d{6}) TR(\d+)(\.tdms)', '$1 SM$2 TR$2$3');  
+    
+    cd(pname)
     [~,dirname,~]=fileparts(fname);
-    cd(fullfile(pname,dirname));
-    
-    load('spec_data.mat');
-    ind = find(spec_data.pos(:,1)==0);
-    spec_data.trackImg(:,:,ind) = [];
-    
-    tiff_fileName = strrep(dirname, ' ', '_')+".tiff";    
-    t = Tiff(strcat('/Users/shahao/Desktop/new_folder/',tiff_fileName),'w');
-    tagstruct.ImageLength = size(spec_data.trackImg, 1);
-    tagstruct.ImageWidth = size(spec_data.trackImg, 2);
-    tagstruct.SampleFormat = Tiff.SampleFormat.IEEEFP;
-    tagstruct.Photometric = Tiff.Photometric.MinIsBlack;
-    tagstruct.BitsPerSample = 64;
-    tagstruct.RowsPerStrip = 16;
-    tagstruct.PlanarConfiguration = Tiff.PlanarConfiguration.Chunky;
-    t.setTag(tagstruct);
-    
-    % 循环遍历图像序列，并将每个图像写入TIFF文件
-    for i = 1:size(spec_data.trackImg, 3)
-        img = spec_data.trackImg(:, :, i);
-        t.setTag(tagstruct);
-        t.write(img);
-        t.writeDirectory();
-    end  
+    image_ccd = read_and_rotate_tiff(strcat(regexp(dirname, 'TR\d+', 'match'),'-1.tif'));
 
+    if exist(fullfile(pname,dirname), 'dir')
+        cd(fullfile(pname,dirname));  
+        load(strcat(dirname,'.mat'));
+    else
+        [trackData,trackDataFilt] = trajLoadTDMSCalibrated_galvo_v2(1,char(fname),pname);
+        cd(fullfile(pname,dirname));  
+    end
+
+    z=trackDataFilt(:,6);
+    y=trackDataFilt(:,5);
+    x=trackDataFilt(:,4);
+    traj_i = trackDataFilt(:,11);
+    
+    if exist('spec_data.mat', 'file')
+        load('spec_data.mat');
+        % spec_data = AnalysisSpecImg_centroid_v2(image_ccd, fname);
+        % plot_spec(traj_i,x,y,z,spec_data,dirname)
+        % save("spec_data","spec_data");
+    else
+        % image_ccd = showEMCCDImg_v2(length(trackDataFilt),1,sname,pname);
+        spec_data = AnalysisSpecImg_centroid_v2(image_ccd, fname);
+        plot_spec(traj_i,x,y,z,spec_data,dirname)
+        save("spec_data","spec_data");
+    end
+    
+    Spec_cent = [Spec_cent, mean(spec_data.raw_centroid)];
+    Spec_cent_std = [Spec_cent_std, std(spec_data.raw_centroid)];
+
+    % exposureTime = length(trackDataFilt) / length(spec_data.raw_centroid); % ms 
+    % spec_cent = spec_data.raw_centroid;
+
+    track_duration = length(trackDataFilt);
+    if track_duration < 500
+        continue
+    end
+
+    t1 = 100;
+    t2 = track_duration - 100;        
+    [~,msd,D,r]=msdcalc(x(t1:t2),y(t1:t2),z(t1:t2),1000);
+    
+    Diff = [Diff, D];
+    Diff_R = [Diff_R, r];
+
+    traj_Time = [traj_Time, (track_duration - 200)/1000];
+    traj_Int = [traj_Int, mean(traj_i)];
+    file_names = [file_names, dirname];
+
+    disp(fname + ' completed!')
+end
+atto665N_traj_D = Diff(1:32)';
+atto665N_traj_d = Diff_R(1:32)'*2;
+atto665N_traj_duration = traj_Time(1:32)';
+atto665N_traj_Int = traj_Int(1:32)';
+atto665N_Spec_cent = Spec_cent(1:32)';
+atto665N_Spec_cent_std = Spec_cent_std(1:32)';
+
+setau647_traj_D = Diff(33:67)';
+setau647_traj_d = Diff_R(33:67)'*2;
+setau647_traj_duration = traj_Time(33:67)';
+setau647_traj_Int = traj_Int(33:67)';
+setau647_Spec_cent = Spec_cent(33:67)';
+setau647_Spec_cent_std = Spec_cent_std(33:67)';
+
+
+atto565N_traj_D = Diff(68:96)';
+atto565N_traj_d = Diff_R(68:96)'*2;
+atto565N_traj_duration = traj_Time(68:96)';
+atto565N_traj_Int = traj_Int(68:96)';
+atto565N_Spec_cent = Spec_cent(68:96)';
+atto565N_Spec_cent_std = Spec_cent_std(68:96)';
+
+figure(1)
+ax1 = subplot(221);
+plot_hist({atto665N_traj_d, setau647_traj_d, atto565N_traj_d}, [0.2,0.2,0.2], ...
+    {'atto647N','setau647','atto565N'}, 'count', ax1,'equalInterval')
+xlabel('Diameter (nm)')
+ylabel('Density')
+
+ax2 = subplot(222);
+plot_hist({atto665N_Spec_cent, setau647_Spec_cent, atto565N_Spec_cent}, [1,1,1], ...
+    {'atto647N','setau647','atto565N'}, 'count', ax2,'equalInterval')
+xlabel('Spec. Cent. (nm)')
+ylabel('Density')
+truncAxis('X', [600,675])
+
+
+ax3 = subplot(223);
+plot_hist({atto665N_traj_duration, setau647_traj_duration, atto565N_traj_duration}, [1,1,1], ...
+    {'atto647N','setau647','atto565N'}, 'count', ax3,'equalInterval')
+xlabel('Time (s)')
+ylabel('Density')
+
+ax4 = subplot(224);
+plot_hist({atto665N_traj_Int/1000, setau647_traj_Int/1000, atto565N_traj_Int/1000}, [0.4,0.4,0.4], ...
+    {'atto647N','setau647','atto565N'}, 'count', ax4,'equalInterval')
+xlabel('Intensity (kHz)')
+ylabel('Density')
+
+
+%% Positioning accuracy vs spectral accuracy
+trackDataFilt = trackDataFilt(500:end-500,:);
+
+exposureTime = length(trackDataFilt) / length(spec_data.raw_centroid); % ms 
+
+z=trackDataFilt(:,6);
+y=trackDataFilt(:,5);
+x=trackDataFilt(:,4);
+spec_cent = spec_data.raw_centroid(2:end-1);
+
+track_duration = length(trackDataFilt);
+time_win = 1000;
+step_size = 1000;
+
+num_windows = floor((length(x) - time_win) / step_size) + 1;
+std_errors_x = zeros(num_windows, 1);
+std_errors_y = zeros(num_windows, 1);
+std_errors_z = zeros(num_windows, 1);
+std_errors_spec = zeros(num_windows, 1);
+for i= 3: num_windows-3
+    t1 = (i-1) * step_size + 1;
+    t2 = t1 + time_win - 1;
+    
+    % 计算标准差并存储
+    std_errors_x(i) = std(x(t1:t2))*1000;
+    std_errors_y(i) = std(y(t1:t2))*1000;
+    std_errors_z(i) = std(z(t1:t2))*1000;
+    
+    frame_t1 = round(t1 / exposureTime);
+    frame_t2 = min(round(t2 / exposureTime), length(spec_cent));
+
+    std_errors_spec(i) = std(spec_cent(frame_t1:frame_t2));
 end
 
+% scatter(std_errors_x(3:end-3), std_errors_spec(3:end-3), 'o','DisplayName', 'std_x');
+% hold on
+% scatter(std_errors_y(3:end-3), std_errors_spec(3:end-3), 'o','DisplayName', 'std_y');
+scatter(std_errors_z(3:end-3), std_errors_spec(3:end-3), 60, 'filled', 'MarkerFaceAlpha',1, 'DisplayName', 'std_z');
+
+xlabel('Z Localizaion Errors (nm)')
+ylabel('Spectral Erros (nm)')
+grid on
 
 
+%% FrameRate vs Numbers of Fluorophore
+exposureTime = [50, 100, 200 ,500];
+% FloNums =[14504*0.05, 10885*0.1, 6625*0.2, 4933*0.5]; % 3nm spec precision
+setau647_molecule_Photos = 9.63;
+atto647N_molecule_Photos = 8.43;
+
+setau647_Photos = setau647_molecule_Photos * [50, 100, 200 ,500];
+atto647N_Photos = atto647N_molecule_Photos * [50, 100, 200 ,500];
+
+int_5nm_spec =  8033*0.1;
+% int_5nm_spec =[9614*0.05, 8033*0.1, 4383*0.2, 3444*0.5]; % 5nm spec precision
+
+FloNums_setau =  int_5nm_spec ./ setau647_Photos;
+
+f = fit(exposureTime', FloNums_setau', 'power2');
+hold on
+
+x = logspace(0.1, 3, 1000);
+plot(x, f(x), 'LineWidth', 1.5);
+set(gca, 'XScale', 'log');
+
+scatter(100, 1, 200,'o','filled','DisplayName','setau647N') % 
+n = 1.3442e+05/setau647_molecule_Photos/1000;
+scatter(10, n, 200,'s','filled','DisplayName','fig2a') % 
+n = 5.8732e+04/setau647_molecule_Photos/1000;
+scatter(100, n, 200,'d','filled','DisplayName','fig2d') % 
+% n = 3.1571e+06/setau647_molecule_Photos/1000;
+% scatter(1, n, 80,'d','filled','DisplayName','fig2e') % 
+n = 9.0172e+04/setau647_molecule_Photos/1000;
+scatter(30, n, 200,'v','filled','DisplayName','fig3a') % 
+n = 1.3049e+05/setau647_molecule_Photos/1000;
+scatter(30, n, 200,'p','filled','DisplayName','fig4a') % 
+
+grid on
+xlabel("Exposure Time (ms)")
+ylabel("Numbers of Setau647 molecule")
 
 
+%% Evaluation of EMCCD positioning accuracy
+time = (1:length(spec_data.raw_centroid)) * (length(trackDataFilt)/1000/length(spec_data.raw_centroid));
+initialPosition = mean(spec_data.pos,1); 
+xyData = spec_data.pos;
+displacement = xyData - initialPosition; 
 
-%% 纳米银数据分析，同时展示EMCCD图片和光谱轨迹
-z=trackDataFilt(1:end,6);
-y=trackDataFilt(1:end,5);
-x=trackDataFilt(1:end,4);
-traj_int=trackDataFilt(1:end,1);
-spec_data_crop = crop_spec_data(spec_data, 1, 6225);
-
-time=(1:length(x(:,1)))/1000;
-
-centerEMCCD = [154,149];
-posImg = image_ccd(:,1:251,1:6225);
-showFrame = 1145;
-plot_spec_emccd(traj_int,y,x,z,spec_data_crop,'231116 TR031', posImg,showFrame,centerEMCCD)
+xError = displacement(:, 1) * 0.238; 
+yError = displacement(:, 2) * 0.238; 
+totalError = sqrt(xError.^2 + yError.^2); 
 
 
+figure;
+subplot(2, 1, 1);
+imagesc(time, 1:size(spec_data.trackCurve(:,1:16),2), spec_data.trackCurve(:,1:16)');
+colormap('parula'); 
+colorbar; 
+xlabel('Time (sec)');
+ylabel('Pixel shift (px)');
+
+subplot(2, 1, 2);
+hold on;
+plot(time, xError, 'r-', 'LineWidth', 1, 'DisplayName', 'X Error');
+plot(time, yError, 'b-', 'LineWidth', 1, 'DisplayName', 'Y Error');
+% plot(time, totalError, 'k-', 'LineWidth', 1, 'DisplayName', 'Total Error');
+xlabel('Time (s)');
+ylabel('Error (pixels)');
+legend('Location', 'Best');
+grid on;
+ylim([-0.25,0.25])
 
 %%
-
-fname_ = "./TR109-three-5mw-1.tif";
-info = imfinfo(fname_);  % 替换'yourfile.tif'为你的文件名
-num_frames = numel(info);
-image_ccd = zeros(65,233,num_frames);  % 创建一个单元数组来存储所有帧
-for k = 1:num_frames
-    image_ccd(:,:,k) = imread(fname_, k);  % 读取第k帧
-end
-save('image_ccd.mat', 'image_ccd','-v7.3')
-
-%% 批处理打开.tdms文件
-pname = '/Volumes/shah_ssd/data/spms_track/单分子FRET/20240902/';
-fileList = ["240902 TR081/"];
-
-fnames = {};
-for j = 1:length(fileList)
-    
-    folderPath = strcat(pname,fileList(j));
-    files = dir(folderPath);
-    files = files(~[files.isdir]);
-    for i = 1:length(files)
-        fileName = files(i).name;
-        if contains(fileName, '.tdms') && ~contains(fileName, 'SM')
-            % 将符合条件的文件名添加到数组中
-            fnames{end+1} = strcat(folderPath,'/',fileName); % 将符合条件的文件名添加到selectedFiles
-        end
-    end
-end
-
-for j = 1:length(fnames)
-    close all
-    
-    [pname, fname, ~] = fileparts(fnames{j}); 
-    sname = regexprep(fname, '(\d{6}) TR(\d+)(\.tdms)', '$1 SM$2 TR$2$3');  
-    iname = regexprep(fname, '(\d{6}) TR(\d+)(\.tdms)', '$1 IM$2 TR$2$3');
-
-    fname_ = cell2mat(strcat(fname, '.tdms'));
-    [trackData,trackDataFilt] = trajLoadTDMSCalibrated_galvo_v2(1,fname_,pname);
-    disp(fname_)
-    image_ccd = showEMCCDImg(length(trackDataFilt),1,sname,pname);
-% 
-%     cd(pname)
-%     cd(fname)
-%     disp(fname)
-%     load("image_ccd.mat");
-    spec_data = AnalysisSpecImg_centroid(image_ccd, fname);
-    save("spec_data","spec_data");
-end
-
-
-
 
 
 %%
@@ -1635,5 +1578,134 @@ end
         anno.VerticalAlignment='middle';
         anno.HorizontalAlignment='center';
     end
+end
+
+
+function plot_hist(dataGroups, binCounts, groupLabels, yType, axHandle, binType)
+% Input parameters:
+% dataGroups - Cellular array containing multiple sets of data (each set of data is a one-dimensional array)
+% binCounts - The number or interval of bins in each group of data
+% groupLabels - Labels for each set of data (an array of cells of the same length as the dataGroups)
+% yType - ordinate type, 'count' or 'pdf' (optional, default is 'count')
+% axHandle - Target axis handle (optional, default is the current axis)
+% binType - 'equalBinCount' or 'equalInterval' controls the behavior of the bin
+%
+% Example usage:
+%   fig = figure;
+%   ax1 = axes(fig);
+%   data1 = randn(1, 32) * 10 + 50;  % First set of 32 data
+%   data2 = randn(1, 45) * 15 + 60;  The second set of 45 data
+%   plot_hist({data1, data2}, [10, 15], {'Group 1', 'Group 2'}, 'count', ax1, 'equalBinCount');
+
+    if nargin < 4 || isempty(yType)
+        yType = 'count'; 
+    end
+    if nargin < 5 || isempty(axHandle)
+        axHandle = gca;
+    end
+    if nargin < 6 || isempty(binType)
+        binType = 'equalBinCount'; 
+    end
+
+    if nargin < 3 || isempty(groupLabels)
+        groupLabels = arrayfun(@(i) sprintf('Group %d', i), 1:length(dataGroups), 'UniformOutput', false);
+    end
+
+
+    colors = lines(length(dataGroups));
+
+
+    axes(axHandle);
+    hold on;
+
+    max_data = 0.0;
+    min_data = Inf;
+
+    for i = 1:length(dataGroups)
+        if max_data < max(dataGroups{i})
+            max_data = max(dataGroups{i});
+        end
+
+        if min_data > min(dataGroups{i})
+            min_data = min(dataGroups{i});
+        end
+
+    end
+
+    for i = 1:length(dataGroups)
+        data = dataGroups{i};
+        binCount = binCounts(i);
+
+        if strcmp(binType, 'equalBinCount')
+            edges = linspace(min(data), max(data), binCount + 1);
+        elseif strcmp(binType, 'equalInterval')
+            % binCount_ = floor((max(data)-min(data))/binCount);
+            % edges = linspace(min(data), max(data), binCount_ + 1);
+
+            binCount_ = floor((max_data-min_data)/binCount);
+            edges = linspace(min_data, max_data, binCount_ + 1);
+        else
+            error('Invalid binType. Use ''equalBinCount'' or ''equalInterval''.');
+        end
+
+
+        if strcmp(yType, 'pdf')
+            normalization = 'pdf'; 
+            ylabel(axHandle, 'Probability Density');
+        elseif strcmp(yType, 'count')
+            normalization = 'count';
+            ylabel(axHandle, 'Count');
+        else
+            error('Invalid yType. Use ''count'' or ''pdf''.');
+        end
+
+
+        histogram(data, edges, 'Normalization', normalization, ...
+                  'FaceAlpha', 0.5, 'FaceColor', colors(i, :), 'DisplayName', groupLabels{i});
+
+
+        pd = fitdist(data, 'Normal'); 
+        mu = pd.mu; 
+        sigma = pd.sigma; 
+
+        x = linspace(min(data), max(data), 1000);
+        y = pdf(pd, x); 
+
+ 
+        if strcmp(yType, 'count')
+            y = y * length(data); 
+        end
+
+        text(axHandle, mean(x), max(y) * (0.9 - 0.1 * i), ...
+             sprintf('\\mu=%.2f, \\sigma=%.2f', mu, sigma), ...
+             'Color', colors(i, :), 'FontSize', 10);
+    end
+
+    legend(axHandle, 'show');
+    grid(axHandle, 'on');
+    hold off;
+end
+
+
+function plot_kymograms(imageData, emissionData, time)
+    % Kymograms and corresponding Emission curves were drawn
+
+    % kymogram = reshape(mean(imageData, 1), [cols, timeSteps])'; % 按列求平均
+    kymogram = imageData;
+
+    figure;
+
+    subplot(2, 1, 1);
+    imagesc(time, 1:size(imageData,2), kymogram');
+    colormap('parula'); 
+    % colorbar;
+    xlabel('Time (sec)');
+    ylabel('Pixel shift (px)');
+
+    subplot(2, 1, 2);
+    plot(time, emissionData, 'b-', 'LineWidth', 1);
+    xlabel('Time (sec)');
+    ylabel('Emission max (nm)');
+    grid on
 end
 

@@ -45,7 +45,9 @@ function plot_traj(trackDataFilt,dirname)
     xlabel('Time [sec]')
     ylabel('Intensity [counts/sec]')
     figureandaxiscolors('w','k',dirname)
-    % ylim([0, 4e5])
+    axis tight
+    % ylim([0, 2e4])
+    
 
     ax3 = axes('Position', pos3);
     plot(ax3,time,trackDataFilt(:,4),'LineWidth',1.5);

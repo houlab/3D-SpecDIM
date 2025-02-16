@@ -74,7 +74,7 @@ function spec_data=AnalysisSpecImg_centroid(image_ccd, fname)
         PosTrackPoint = [38, 33]; % 264 150  240-304  64-448
         SpecTrackPoint = [34,115]; % 264 340     
 
-    elseif contains(fname,  ["240902"])
+    elseif contains(fname,  ["240902","240911"])
         crop_x = 13;
         crop_y = 0;
         PosTrackPoint = [34, 34]; % 264 150  240-304  64-448

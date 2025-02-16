@@ -72,6 +72,7 @@ function plot_spec(traj_int,x,y,z,spec_data,dirname)
     xlabel('Time(s)')
     ylabel('Centroids')
     hold on
+    ylim([570, 615])
     % figTrajname=[dirname ' pH ratio' '.fig'];
     % saveas(hSpec,figTrajname,'fig');
     
@@ -111,7 +112,7 @@ function plot_spec(traj_int,x,y,z,spec_data,dirname)
     % video_name = strcat(dirname,'.mp4');
     % outputVideo = VideoWriter(video_name, 'MPEG-4');
     % open(outputVideo);
-    
+    spec_data_ = spec_data;
     for i=1:cjlen-1
     
         seg=(floor((i-1)*len/cjlen)+1):floor((i)*len/cjlen);
@@ -126,7 +127,8 @@ function plot_spec(traj_int,x,y,z,spec_data,dirname)
         plot(ax5, time(seg), z(seg),'Color',"#0072BD",'LineWidth',1);
     
         seg = ((i-1)*disp_rate+1:(i+1)*disp_rate);
-        plot(ax2, spec_time(seg), spec_data.raw_centroid(seg),'r','LineWidth',1)    
+        spec_data_.raw_centroid(spec_data_.pos(:,1)==0) = NaN;
+        plot(ax2, spec_time(seg), spec_data_.raw_centroid(seg),'r','LineWidth',1)
     
     %     %%%%%
     %     drawnow;

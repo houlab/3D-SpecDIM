@@ -1,7 +1,7 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%ouput spec centroid data%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-function spec_data=AnalysisSpecImg_pH(image_ccd, fname, mGoldHaloSpec)
+function spec_data=AnalysisSpecImg_pH_unmixng_v2(image_ccd, fname, mGoldHaloSpec)
   
     minVal = 0;
     h_n=size(image_ccd,3);
@@ -143,13 +143,13 @@ function spec_data=AnalysisSpecImg_pH(image_ccd, fname, mGoldHaloSpec)
         
         % raw_centroid = mean(channel488,"all") / mean(channel561,"all");
         % raw_centroid = max(mean(channel488, 1)) / max(mean(channel561,1));
-        raw_centroid = calc_unmixing_spec(trackCurve, mGoldHaloSpec);
+        [int_split, raw_centroid] = calc_unmixing_spec(trackCurve, mGoldHaloSpec);
 
         spec_data.pos(i,:) = [cx,cy];
         spec_data.snr(i) = snr;
         spec_data.raw_centroid(i) = raw_centroid;
-        spec_data.mGold_int(i) = (max(mean(channel488, 1)) - min_488) / (max_488 - min_488);
-        spec_data.HaloTag_int(i) = (max(mean(channel561, 1)) - min_561) / (max_561 - min_561);
+        spec_data.mGold_int(i) = int_split(1);
+        spec_data.HaloTag_int(i) = int_split(2);
         spec_data.Lyso_int(i) = (max(mean(channel640, 1)) - min_640) / (max_640 - min_640);
 
     end
@@ -183,7 +183,7 @@ end
 
 %%
 
-function spec_ratio = calc_unmixing_spec(spec_curve, mGoldHaloSpec)
+function [x, spec_ratio] = calc_unmixing_spec(spec_curve, mGoldHaloSpec)
     % 定义时间点和波长范围
     mGold_spec = normalize(mGoldHaloSpec.mGold,'range')';
     JF549_spec = normalize(movmean(mGoldHaloSpec.JF549', 40),'range')';

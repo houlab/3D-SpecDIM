@@ -143,7 +143,7 @@ function spec_data=AnalysisSpecImg_pH(image_ccd, fname)
 
         [cx,cy] = PSFfiting(trackPos);
         
-        % raw_centroid = mean(channel488,"all") / mean(channel561,"all");
+        % raw_centroid = sum(channel488,"all") / sum(channel561,"all");
         raw_centroid = max(mean(channel488, 1)) / max(mean(channel561,1));
 
         spec_data.pos(i,:) = [cx,cy];

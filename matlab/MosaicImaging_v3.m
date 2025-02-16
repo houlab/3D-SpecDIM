@@ -28,7 +28,7 @@ imData_ = [data2(:,3), data2(:,2), data2(:,5), floor(data2(:,12)/tickTime),data2
 
 %1st column - channel (1 = tracking; 0 = imaging; 3 = both)
 %2nd column - KT index (pattern coordinates)
-%3rd column - TAG Phaseo
+%3rd column - TAG Phase
 %4th column - Ticks
 %5th column - Time
 %6th column - x
@@ -302,22 +302,18 @@ y_max = max(seg_pos(:,2));
 z_min = min(seg_pos(:,3));
 z_max = max(seg_pos(:,3));
 
-% 2. 计算每个维度的像素尺寸
 pix_sizeX = (x_max - x_min) / image_size(1);
 pix_sizeY = (y_max - y_min) / image_size(2);
 pix_sizeZ = (z_max - z_min) / image_size(3);
 
-% 3. 将轨迹数据转换为图像的像素坐标
 x_pixel = (seg_pos(:,1) - x_min) / pix_sizeX + 1;
 y_pixel = (seg_pos(:,2) - y_min) / pix_sizeY + 1;
 z_pixel = (seg_pos(:,3) - z_min) / pix_sizeZ + 1;
 
-% 确保像素坐标不超出图像边界
 x_pixel = max(min(x_pixel, image_size(1)), 1);
 y_pixel = max(min(y_pixel, image_size(2)), 1);
 z_pixel = max(min(z_pixel, image_size(3)), 1);
 
-% 在不同平面上进行可视化
 pos1 = [0.1, 0.5, 0.35, 0.35]; % [left bottom width height]
 pos2 = [0.6, 0.5, 0.35, 0.35];
 pos3 = [0.1, 0.1, 0.25, 0.25];
@@ -329,40 +325,35 @@ figure
 data = load('plasma_colormap.mat');
 plasma_map = data.plasma;
 
-% XOY平面
+% XOY 
 ax3 = axes('Position', pos3);
 xlabel('X');
 ylabel('Y');
-img_xy = squeeze(sum(cloud_, 3)); % 提取XY平面图像
-% img_xy_resized = imresize(img_xy, output_size); % 缩放图像
+img_xy = squeeze(sum(cloud_, 3));
 imshow(img_xy, []);
-colormap(ax3, plasma_map); % 设置自定义colormap为plasma
+colormap(ax3, plasma_map);
 title('XOY Plane');
 hold on;
 
-% YOZ平面
+
 ax4 = axes('Position', pos4);
 xlabel('X');
 ylabel('Z');
-img_yz = squeeze(sum(cloud_, 1)); % 提取YZ平面图像
-% img_yz_resized = imresize(img_yz, output_size); % 缩放图像
+img_yz = squeeze(sum(cloud_, 1)); 
 imshow(img_yz, []);
-colormap(ax4, plasma_map); % 设置自定义colormap为plasma
+colormap(ax4, plasma_map); 
 title('YOZ Plane');
 hold on;
 
-% XOZ平面
 ax5 = axes('Position', pos5);
 xlabel('X');
 ylabel('Z');
-img_xz = squeeze(sum(cloud_, 2)); % 提取XZ平面图像
-% img_xz_resized = imresize(img_xz, output_size); % 缩放图像
+img_xz = squeeze(sum(cloud_, 2)); 
 imshow(img_xz, []);
-colormap(ax5, plasma_map); % 设置自定义colormap为plasma
+colormap(ax5, plasma_map);
 title('XOZ Plane');
 hold on;
 
-% 绘制轨迹
 for i = 1:size(spec_time, 2)
     seg = (floor((i-1)*length(seg_pos)/length(spec_time))+1):floor(i*length(seg_pos)/length(spec_time));
     cid = find(abs(hit_centroid-roundn(raw_centroids(i),-2)) < 1e-3);
